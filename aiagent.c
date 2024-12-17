@@ -29,12 +29,7 @@ Agent *createAiAgent(void)
 
 int GetMinimaxScore(Agent *agent, Board b) //Fonction renvoyant la valeur de S(b)
 {
-    Board bBis = malloc(sizeof(Board));
-    if(!bBis)
-        exit(1);
-    for(int j = 0; j < 9; j++){
-        bBis[j] = b[j];
-    }
+    Board bBis = boardCopy(b);
     Dict *dict = (Dict *)agentGetData(agent);
 
     if(dictContains(dict, bBis)){
@@ -45,21 +40,15 @@ int GetMinimaxScore(Agent *agent, Board b) //Fonction renvoyant la valeur de S(b
     int minimaxScore = -1;
     Move bestMove = 0;
     for(Move i = 0; i < 9; i++){
-        Board tempB = malloc(sizeof(Board));
-        if(!tempB)
-            exit(1);
+        Board tempB = boardCopy(bBis);
         if(boardValidMove(bBis, i)){
-            for(int j = 0; j < 9; j++){
-                tempB[j] = bBis[j];
-            }
-
-            tempB = boardNext(tempB, i, boardGetPlayer(bBis));
+            boardNext(tempB, i, boardGetPlayer(bBis));
             if(boardIsFull(tempB) && boardWin(tempB) == E){ //Cas où le board est full + draw
                 if(minimaxScore < 0){
                     minimaxScore = 0;
                 }
 
-            } else if(boardWin(tempB) == X || boardWin(tempB) == O){ //Cas où la game est lose
+            } else if(boardWin(tempB) != E){ //Cas où la game est lose
                 //On fait rien parce que minimaxScore est déjà égal à -1 dans le pire des cas
 
             } else { //Cas où la game n'est pas finie
