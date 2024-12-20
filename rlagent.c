@@ -5,6 +5,12 @@
 #include "Dict.h"
 #include "LinkedList.h"
 
+struct Node_t
+{
+    void *data;
+    Node *next;
+};
+
 typedef struct DataNode_T{
     bool possibleMoves[9];
     float averageScore[9];
@@ -65,15 +71,52 @@ float getMoveScoreRlAgent(Agent *agent, Board b, Move m) { //Renvoie le score mo
 }
 
 Move rlPlay(Agent *agent, Board b){
+    srand();
     AgentData *data = (AgentData *)agentGetData(agent);
 
     Dict *hashTable = data->hashTable;
     List *playedMoves = data->playedMoves;
     bool isTraining = data->isTraining;
     Move chosenMove = 0;
+    float bestScore = -1;
+    int epsilon = rand() % 4;
 
-    llInsertFirst(playedMoves, chosenMove);
-    return choseMove;
+    if(isTraining == true && epsilon == 0){ //Apprentissage aléatoire
+
+        int nbValidMoves = 0;
+        for(int i = 0; i < 9; i++){
+            if(boardValidMove(b, i)){
+                nbValidMoves++;
+            }
+        }
+        int randomMove = rand() % nbValidMoves;
+        for(int i = 0; i < 9; i++){
+            if(boardValidMove(b, i)){
+                randomMove--;
+            }
+            if(randomMove == 0){
+                chosenMove = i;
+                break;
+            }
+        }
+
+    } else { //Exploitation ou apprentissage renforcé
+
+        if(dictContains(hashTable, b)){
+            DataNode *datanode = dictSearch(hashTable, b);
+            for(int i = 0; i < 9; i++){
+                if(datanode->averageScore[i] > bestScore){
+                    bestScore = datanode->averageScore[i];
+                    chosenMove = i;
+                }
+            }
+        }
+    }
+
+    Move *node = malloc(sizeof(Move));
+    *node = chosenMove;
+    llInsertFirst(playedMoves, node);
+    return chosenMove;
 }
 
 void rlFreedata(void *dict){
@@ -90,25 +133,33 @@ void rlEnd(Agent *agent, Board b, Player winner)
     List *playedMoves = data->playedMoves;
     bool isTraining = data->isTraining;
 
-    Node *currentNode = malloc(sizeof(Node));
+    if(isTraining == false){
+        return;
+    }
+
+    Node *currentNode = malloc(sizeof(Node *));
     Move currentMove;
 
     while(llLength(playedMoves) != 0){
         currentNode = llPopFirst(playedMoves);
-        currentMove = currentNode->data;
+        currentMove = *(Move *)currentNode->data;
+        DataNode *datanode = malloc(sizeof(DataNode));
         if(dictContains(hashTable, b)){
-            DataNode *datanode = dictSearch(hashTable, b);
+            datanode = dictSearch(hashTable, b);
             datanode->NumberOfTimePlayed[currentMove] += 1;
-            if(player == winner){
-                datanode->averageScore[currentMove] = (datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] + 1) / (datanode->NumberOfTimePlayed[currentMove] + 1);
-            } else if(winner == E){
-                datanode->averageScore[currentMove] = datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] / (datanode->NumberOfTimePlayed[currentMove] + 1);
-            } else {
-                datanode->averageScore[currentMove] = (datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] - 1) / (datanode->NumberOfTimePlayed[currentMove] + 1);
-            }
         } else {
-            exit(1);
+            for(int i = 0; i < 9; i++){
+                datanode->NumberOfTimePlayed[i] = 1;
+                datanode->averageScore[i] = 0;
+            }
+        }
+        if(player == winner){
+            datanode->averageScore[currentMove] = (datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] + 1) / (datanode->NumberOfTimePlayed[currentMove] + 1);
+        } else if(winner == E){
+            datanode->averageScore[currentMove] = datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] / (datanode->NumberOfTimePlayed[currentMove] + 1);
+        } else {
+            datanode->averageScore[currentMove] = (datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] - 1) / (datanode->NumberOfTimePlayed[currentMove] + 1);
         }
     }
-    return;
+    llFree(playedMoves);
 }
