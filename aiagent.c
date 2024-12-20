@@ -13,7 +13,7 @@ int GetMinimaxScore(Agent *agent, Board b);
 
 typedef struct Node_T{
     Move bestMove;
-    int minimaxScore ;
+    int minimaxScore;
 } Node;
 
 Agent *createAiAgent(void) 
@@ -32,6 +32,14 @@ int GetMinimaxScore(Agent *agent, Board b) //Fonction renvoyant la valeur de S(b
     Board bBis = boardCopy(b);
     Dict *dict = (Dict *)agentGetData(agent);
 
+    Player winner = boardWin(b);
+
+    if (winner != E)
+        return -1;
+
+    if (boardIsFull(b))
+        return 0;
+
     if(dictContains(dict, bBis)){
         Node *node = dictSearch(dict, bBis);
         return node->minimaxScore;
@@ -43,33 +51,17 @@ int GetMinimaxScore(Agent *agent, Board b) //Fonction renvoyant la valeur de S(b
         Board tempB = boardCopy(bBis);
         if(boardValidMove(bBis, i)){
             boardNext(tempB, i, boardGetPlayer(bBis));
-            if(boardIsFull(tempB) && boardWin(tempB) == E){ //Cas où le board est full + draw
-                if(minimaxScore < 0){
-                    minimaxScore = 0;
-                }
-
-            } else if(boardWin(tempB) != E){ //Cas où la game est lose
-                //On fait rien parce que minimaxScore est déjà égal à -1 dans le pire des cas
-
-            } else { //Cas où la game n'est pas finie
-                Board nextBoard = boardNext(bBis, i, boardGetPlayer(bBis));
-                int temp = -GetMinimaxScore(agent, nextBoard); //Formule de Minimax
-                if(temp > minimaxScore){
-                    minimaxScore = temp;
-                    bestMove = i;
-                }
+            Board nextBoard = boardNext(bBis, i, boardGetPlayer(bBis));
+            int temp = -GetMinimaxScore(agent, nextBoard); //Formule de Minimax
+            if(temp > minimaxScore){
+                minimaxScore = temp;
+                bestMove = i;
             }
         }
         free(tempB);
     }
 
-    for (Move i = 0; i < 9; i++){
-        if (boardValidMove(b, i)){
-            bestMove = i;
-            break;
-        }
-    }
-
+    
     Node *node = malloc(sizeof(Node));
     if(!node)
         exit(1);
