@@ -5,14 +5,15 @@
 #include "Dict.h"
 #include "LinkedList.h"
 
+#include <stdio.h>
+
 struct Node_t
 {
-    void *data;
+    Move data;
     Node *next;
 };
 
 typedef struct DataNode_T{
-    bool possibleMoves[9];
     float averageScore[9];
     int NumberOfTimePlayed[9];
 } DataNode;
@@ -53,13 +54,10 @@ void setTrainingModeRlAgent(Agent *agent, bool training) { //Training = True -> 
     data->isTraining = training;
 }
 
-
 float getMoveScoreRlAgent(Agent *agent, Board b, Move m) { //Renvoie le score moyen du move en fonction des données déjà accumulées
     AgentData *data = (AgentData *)agentGetData(agent);
 
     Dict *hashTable = data->hashTable;
-
-    Player p = agentGetPlayer(agent);
 
     if(boardValidMove(b, m) && dictContains(hashTable, b)){
         DataNode *datanode = dictSearch(hashTable, b);
@@ -71,7 +69,6 @@ float getMoveScoreRlAgent(Agent *agent, Board b, Move m) { //Renvoie le score mo
 }
 
 Move rlPlay(Agent *agent, Board b){
-    srand();
     AgentData *data = (AgentData *)agentGetData(agent);
 
     Dict *hashTable = data->hashTable;
@@ -79,9 +76,19 @@ Move rlPlay(Agent *agent, Board b){
     bool isTraining = data->isTraining;
     Move chosenMove = 0;
     float bestScore = -1;
-    int epsilon = rand() % 4;
+    int proba = rand() % 4;
 
-    if(isTraining == true && epsilon == 0){ //Apprentissage aléatoire
+    if(!dictContains(hashTable, b)){
+        DataNode *datanode = malloc(sizeof(DataNode));
+        for(int i = 0; i < 9; i++){
+            datanode->averageScore[i] = 0;
+            datanode->NumberOfTimePlayed[i] = 1;
+        }
+
+        dictInsert(hashTable, b, datanode);
+    }
+
+    if(isTraining == true && proba == 0){ //Apprentissage aléatoire
 
         int nbValidMoves = 0;
         for(int i = 0; i < 9; i++){
@@ -89,7 +96,7 @@ Move rlPlay(Agent *agent, Board b){
                 nbValidMoves++;
             }
         }
-        int randomMove = rand() % nbValidMoves;
+        int randomMove = (rand() % nbValidMoves )+ 1;
         for(int i = 0; i < 9; i++){
             if(boardValidMove(b, i)){
                 randomMove--;
@@ -105,11 +112,13 @@ Move rlPlay(Agent *agent, Board b){
         if(dictContains(hashTable, b)){
             DataNode *datanode = dictSearch(hashTable, b);
             for(int i = 0; i < 9; i++){
-                if(datanode->averageScore[i] > bestScore){
+                if(datanode->averageScore[i] > bestScore && boardValidMove(b, i)){
                     bestScore = datanode->averageScore[i];
                     chosenMove = i;
                 }
             }
+        } else {
+
         }
     }
 
@@ -119,8 +128,10 @@ Move rlPlay(Agent *agent, Board b){
     return chosenMove;
 }
 
-void rlFreedata(void *dict){
-    dictFreeValues((Dict *)dict, freeValues);
+void rlFreedata(void *data){
+    AgentData *agentdata = (AgentData *)data;
+    Dict *dict = agentdata->hashTable;
+    dictFreeValues(dict, freeValues);
     return;
 }
 
@@ -137,12 +148,12 @@ void rlEnd(Agent *agent, Board b, Player winner)
         return;
     }
 
-    Node *currentNode = malloc(sizeof(Node *));
+    Node *currentNode;
     Move currentMove;
 
     while(llLength(playedMoves) != 0){
         currentNode = llPopFirst(playedMoves);
-        currentMove = *(Move *)currentNode->data;
+        currentMove = currentNode->data;
         DataNode *datanode = malloc(sizeof(DataNode));
         if(dictContains(hashTable, b)){
             datanode = dictSearch(hashTable, b);
@@ -161,5 +172,4 @@ void rlEnd(Agent *agent, Board b, Player winner)
             datanode->averageScore[currentMove] = (datanode->NumberOfTimePlayed[currentMove] * datanode->averageScore[currentMove] - 1) / (datanode->NumberOfTimePlayed[currentMove] + 1);
         }
     }
-    llFree(playedMoves);
 }
